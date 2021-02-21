@@ -720,6 +720,16 @@ struct NonLocalMomentsClientList {
   }
 };
 
+#include <hypercomm/aggregation.hpp>
+#include <hypercomm/routing.hpp>
+
+using buffer_t = aggregation::dynamic_buffer;
+using router_t = aggregation::routing::mesh<2>;
+using aggregator_t = aggregation::array_aggregator<buffer_t, router_t, ParticleShuffleMsg *>;
+
+void initAggregators(const CkArrayID& id);
+aggregator_t* getAggregator(const CkArrayID& id, const int& idx);
+
 /// Fundamental structure that holds particle and tree data.
 class TreePiece : public CBase_TreePiece {
    // jetley
@@ -1409,6 +1419,7 @@ public:
             iPrevRungLB (-1), sTopDown(0), sGravity(0),
             sPrefetch(0), sLocal(0), sRemote(0), sPref(0), sSmooth(0), 
             nPrevActiveParts(0) {
+	  initAggregators(thisProxy);
 	  dm = NULL;
 	  foundLB = Null; 
 	  iterationNo=0;

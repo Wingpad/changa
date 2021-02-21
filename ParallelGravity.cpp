@@ -51,6 +51,51 @@
 #include "cuda_typedef.h"
 #endif
 
+#include <hypercomm/registration.hpp>
+
+namespace {
+using aggrsubmap_t = std::map<int, std::unique_ptr<aggregator_t>>;
+using aggrmap_t = std::map<CkArrayID, aggrsubmap_t>;
+CkpvDeclare(aggrmap_t, aggregators_);
+
+constexpr auto aggrbufsz = 32;
+constexpr auto aggrutilcap = 0.75;
+constexpr auto aggrtimeout = 0.0125 * 16;
+constexpr auto aggrcond = CcdPROCESSOR_STILL_IDLE;
+}
+
+void initAggregators(const CkArrayID& id) {
+    if (!CkpvInitialized(aggregators_)) {
+        CkpvInitialize(aggrmap_t, aggregators_);
+    }
+
+    auto& as = CkpvAccess(aggregators_);
+    auto search = as.find(id);
+    if (search == as.end()) {
+        auto asp = CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg();
+        auto aspfo = CkIndex_TreePiece::idx_acceptSortedParticlesFromOther_ParticleShuffleMsg();
+        auto ioasp = CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg();
+        
+        aggrsubmap_t sm;
+        sm[asp] = std::unique_ptr<aggregator_t>(
+            new aggregator_t(id, asp, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+        sm[aspfo] = std::unique_ptr<aggregator_t>(
+            new aggregator_t(id, aspfo, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+        sm[ioasp] = std::unique_ptr<aggregator_t>(
+            new aggregator_t(id, ioasp, aggrbufsz * 4, aggrutilcap, aggrtimeout, false, aggrcond));
+
+        as.emplace_hint(search, id, std::move(sm));
+    }
+}
+
+aggregator_t* getAggregator(const CkArrayID& id, const int& idx) {
+    CkAssert(CkpvInitialized(aggregators_) && "initAggregators was not called on this pe");
+    auto& as = CkpvAccess(aggregators_);
+    auto search = as.find(id);
+    CkAssert(search != as.end() && "initAggregators was not called for this array id");
+    return (search->second)[idx].get();
+}
+
 extern char *optarg;
 extern int optind, opterr, optopt;
 extern const char * const Cha_CommitID;

@@ -1571,7 +1571,8 @@ void TreePiece::ioShuffle(CkReductionMsg *msg)
 		ioAcceptSortedParticles(shuffleMsg);
 		}
 	    else {
-		pieces[iPiece].ioAcceptSortedParticles(shuffleMsg);
+            auto aggregator = getAggregator(pieces, CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg());
+            aggregator->send(pieces[iPiece], shuffleMsg);
 		}
 	    }
 	if(&myParticles[myNumParticles + 1] <= binEnd)

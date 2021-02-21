@@ -553,7 +553,9 @@ mainmodule ParallelGravity {
     entry [local] void finishedTPWork();
   };
 
-
-
   initproc void registerStatistics();
+
+  namespace aggregation {
+    initproc void initialize(void);
+  }
 };
