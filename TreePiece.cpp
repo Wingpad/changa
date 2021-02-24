@@ -3281,7 +3281,8 @@ bool TreePiece::sendFillReqNodeWhenNull(CkCacheRequestMsg<KeyType> *msg) {
             iResp = dm->responsibleIndex[myPlace + 1];
     }
     if(iResp != thisIndex) {
-        treeProxy[iResp].fillRequestNode(msg);
+        sendAggregated(treeProxy[iResp],
+            CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg(), msg);
         return true;
     }
 
@@ -3305,14 +3306,16 @@ bool TreePiece::sendFillReqNodeWhenNull(CkCacheRequestMsg<KeyType> *msg) {
   if (myParticles[myNumParticles].key < firstKey
       && thisIndex < numTreePieces-1) {
       int iNextIndex = dm->responsibleIndex[myPlace + 1];
-      treeProxy[iNextIndex].fillRequestNode(msg);
+      sendAggregated(treeProxy[iNextIndex],
+          CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg(), msg);
       return true;
   }
   // If the lastkey of the requested key is less than the first particle key,
   // then this node may be with the left neighbor
   else if (myParticles[1].key > lastKey && thisIndex > 0) {
       int iPrevIndex = dm->responsibleIndex[myPlace - 1];
-      treeProxy[iPrevIndex].fillRequestNode(msg);
+      sendAggregated(treeProxy[iPrevIndex],
+          CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg(), msg);
       return true;
   }
   return false;

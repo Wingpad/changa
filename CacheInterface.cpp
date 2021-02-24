@@ -26,7 +26,8 @@ void * EntryTypeGravityParticle::request(CkArrayIndexMax& idx, KeyType key) {
   // This is a high priority message
   *(int*)CkPriorityPtr(msg) = -100000000;
   CkSetQueueing(msg, CK_QUEUEING_IFIFO);
-  treeProxy[*idx.data()].fillRequestParticles(msg);
+  sendAggregated(treeProxy[*idx.data()],
+      CkIndex_TreePiece::idx_fillRequestParticles_CkCacheRequestMsg(), msg);
   return NULL;
 }
 
@@ -101,7 +102,8 @@ void * EntryTypeSmoothParticle::request(CkArrayIndexMax& idx, KeyType key) {
   CkCacheRequestMsg<KeyType> *msg = new (32) CkCacheRequestMsg<KeyType>(key, CkMyPe());
   *(int*)CkPriorityPtr(msg) = -100000000;
   CkSetQueueing(msg, CK_QUEUEING_IFIFO);
-  treeProxy[*idx.data()].fillRequestSmoothParticles(msg);
+  sendAggregated(treeProxy[*idx.data()],
+      CkIndex_TreePiece::idx_fillRequestSmoothParticles_CkCacheRequestMsg(), msg);
   return NULL;
 }
 
@@ -347,8 +349,8 @@ void * EntryTypeGravityNode::request(CkArrayIndexMax& idx, KeyType key) {
   CkCacheRequestMsg<KeyType> *msg = new (32) CkCacheRequestMsg<KeyType>(key, CkMyPe());
   *(int*)CkPriorityPtr(msg) = -110000000;
   CkSetQueueing(msg, CK_QUEUEING_IFIFO);
-
-  treeProxy[*idx.data()].fillRequestNode(msg);
+  sendAggregated(treeProxy[*idx.data()],
+      CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg(), msg);
   return NULL;
 }
 

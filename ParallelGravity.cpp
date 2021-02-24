@@ -72,17 +72,31 @@ void initAggregators(const CkArrayID& id) {
     auto& as = CkpvAccess(aggregators_);
     auto search = as.find(id);
     if (search == as.end()) {
-        auto asp = CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg();
-        auto aspfo = CkIndex_TreePiece::idx_acceptSortedParticlesFromOther_ParticleShuffleMsg();
-        auto ioasp = CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg();
-        
         aggrsubmap_t sm;
+
+        auto asp = CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg();
         sm[asp] = std::unique_ptr<shflagg_t>(
             new shflagg_t(id, asp, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+
+        auto aspfo = CkIndex_TreePiece::idx_acceptSortedParticlesFromOther_ParticleShuffleMsg();
         sm[aspfo] = std::unique_ptr<shflagg_t>(
             new shflagg_t(id, aspfo, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+
+        auto ioasp = CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg();
         sm[ioasp] = std::unique_ptr<shflagg_t>(
             new shflagg_t(id, ioasp, aggrbufsz * 4, aggrutilcap, aggrtimeout, false, aggrcond));
+
+        auto frqn = CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg();
+        sm[frqn] = std::unique_ptr<creqagg_t>(
+            new creqagg_t(id, frqn, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
+
+        auto frqp = CkIndex_TreePiece::idx_fillRequestParticles_CkCacheRequestMsg();
+        sm[frqp] = std::unique_ptr<creqagg_t>(
+            new creqagg_t(id, frqp, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
+
+        auto frqsp = CkIndex_TreePiece::idx_fillRequestSmoothParticles_CkCacheRequestMsg();
+        sm[frqsp] = std::unique_ptr<creqagg_t>(
+            new creqagg_t(id, frqsp, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
 
         as.emplace_hint(search, id, std::move(sm));
     }
