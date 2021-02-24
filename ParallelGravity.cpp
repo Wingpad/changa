@@ -54,7 +54,7 @@
 #include <hypercomm/registration.hpp>
 
 namespace {
-using aggrsubmap_t = std::map<int, std::unique_ptr<aggregator_t>>;
+using aggrsubmap_t = std::map<int, std::unique_ptr<aggbase_t>>;
 using aggrmap_t = std::map<CkArrayID, aggrsubmap_t>;
 CkpvDeclare(aggrmap_t, aggregators_);
 
@@ -77,18 +77,18 @@ void initAggregators(const CkArrayID& id) {
         auto ioasp = CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg();
         
         aggrsubmap_t sm;
-        sm[asp] = std::unique_ptr<aggregator_t>(
-            new aggregator_t(id, asp, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
-        sm[aspfo] = std::unique_ptr<aggregator_t>(
-            new aggregator_t(id, aspfo, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
-        sm[ioasp] = std::unique_ptr<aggregator_t>(
-            new aggregator_t(id, ioasp, aggrbufsz * 4, aggrutilcap, aggrtimeout, false, aggrcond));
+        sm[asp] = std::unique_ptr<shflagg_t>(
+            new shflagg_t(id, asp, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+        sm[aspfo] = std::unique_ptr<shflagg_t>(
+            new shflagg_t(id, aspfo, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+        sm[ioasp] = std::unique_ptr<shflagg_t>(
+            new shflagg_t(id, ioasp, aggrbufsz * 4, aggrutilcap, aggrtimeout, false, aggrcond));
 
         as.emplace_hint(search, id, std::move(sm));
     }
 }
 
-aggregator_t* getAggregator(const CkArrayID& id, const int& idx) {
+aggbase_t* getAggregator(const CkArrayID& id, const int& idx) {
     CkAssert(CkpvInitialized(aggregators_) && "initAggregators was not called on this pe");
     auto& as = CkpvAccess(aggregators_);
     auto search = as.find(id);

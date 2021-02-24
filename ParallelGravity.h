@@ -725,10 +725,19 @@ struct NonLocalMomentsClientList {
 
 using buffer_t = aggregation::dynamic_buffer;
 using router_t = aggregation::routing::mesh<2>;
-using aggregator_t = aggregation::array_aggregator<buffer_t, router_t, ParticleShuffleMsg *>;
+using aggbase_t = aggregation::detail::aggregator_base_;
+using creqagg_t = aggregation::array_aggregator<buffer_t, router_t, CkCacheRequestMsg<KeyType> *>;
+using shflagg_t = aggregation::array_aggregator<buffer_t, router_t, ParticleShuffleMsg *>;
 
 void initAggregators(const CkArrayID& id);
-aggregator_t* getAggregator(const CkArrayID& id, const int& idx);
+aggbase_t* getAggregator(const CkArrayID& id, const int& idx);
+
+template<typename T>
+void sendAggregated(const CProxyElement_ArrayElement& proxy, const int& idx, T *msg) {
+  using aggregator_t = aggregation::array_aggregator<buffer_t, router_t, T *>;
+  auto a = static_cast<aggregator_t *>(getAggregator(proxy.ckGetArrayID(), idx));
+  a->send(proxy, msg);
+}
 
 /// Fundamental structure that holds particle and tree data.
 class TreePiece : public CBase_TreePiece {

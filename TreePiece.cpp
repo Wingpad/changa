@@ -1171,10 +1171,9 @@ void TreePiece::sendParticlesDuringDD(bool withqd) {
         }
       }
       else {
-        auto aggregator = getAggregator(treeProxy,
+        sendAggregated(treeProxy[*responsibleIter],
             withqd ? CkIndex_TreePiece::idx_acceptSortedParticlesFromOther_ParticleShuffleMsg()
-                   : CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg());
-        aggregator->send(treeProxy[*responsibleIter], shuffleMsg);
+                   : CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg(), shuffleMsg);
       }
     }
     if(&myParticles[myNumParticles + 1] <= binEnd)
