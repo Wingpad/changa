@@ -723,20 +723,32 @@ struct NonLocalMomentsClientList {
 #include <hypercomm/aggregation.hpp>
 #include <hypercomm/routing.hpp>
 
+struct AggregatorHelper: public CBase_AggregatorHelper {
+  AggregatorHelper(const CkArrayID&, const CkGroupID&, const CkGroupID&, const CkGroupID&);
+  AggregatorHelper(CkMigrateMessage *msg): CBase_AggregatorHelper(msg) {}
+};
+
 using buffer_t = aggregation::dynamic_buffer;
 using router_t = aggregation::routing::mesh<2>;
 using aggbase_t = aggregation::detail::aggregator_base_;
 using creqagg_t = aggregation::array_aggregator<buffer_t, router_t, CkCacheRequestMsg<KeyType> *>;
 using shflagg_t = aggregation::array_aggregator<buffer_t, router_t, ParticleShuffleMsg *>;
+using cachagg_t = aggregation::aggregator<buffer_t, router_t, CkMarshalledMessage>;
 
-void initAggregators(const CkArrayID& id);
 aggbase_t* getAggregator(const CkArrayID& id, const int& idx);
+aggbase_t* getAggregator(const CkGroupID& id, const int& idx);
 
 template<typename T>
 void sendAggregated(const CProxyElement_ArrayElement& proxy, const int& idx, T *msg) {
   using aggregator_t = aggregation::array_aggregator<buffer_t, router_t, T *>;
   auto a = static_cast<aggregator_t *>(getAggregator(proxy.ckGetArrayID(), idx));
   a->send(proxy, msg);
+}
+
+template<typename T>
+void sendAggregated(const CProxyElement_CkCacheManager<KeyType>& proxy, const int& idx, T *msg) {
+  auto a = static_cast<cachagg_t *>(getAggregator(proxy.ckGetGroupID(), idx));
+  a->send(proxy.ckGetGroupPe(), CkMarshalledMessage{msg});
 }
 
 /// Fundamental structure that holds particle and tree data.
@@ -1428,7 +1440,6 @@ public:
             iPrevRungLB (-1), sTopDown(0), sGravity(0),
             sPrefetch(0), sLocal(0), sRemote(0), sPref(0), sSmooth(0), 
             nPrevActiveParts(0) {
-	  initAggregators(thisProxy);
 	  dm = NULL;
 	  foundLB = Null; 
 	  iterationNo=0;

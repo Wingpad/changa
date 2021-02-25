@@ -88,7 +88,11 @@ void TreePiece::fillRequestParticles(CkCacheRequestMsg<KeyType> *msg) {
     data->part[i] = *((ExternalGravityParticle*)&myParticles[i+bucket->firstParticle]);
   }
   
-  cacheGravPart[msg->replyTo].recvData(reply);
+  sendAggregated(
+    cacheGravPart[msg->replyTo],
+    CkIndex_CkCacheManager<KeyType>::idx_recvData_CkCacheFillMsg(),
+    reply
+  );
   
   delete msg;
 }
@@ -242,10 +246,18 @@ void TreePiece::processReqSmoothParticles() {
 		CkCacheFillMsg<KeyType> *replyCopy = (CkCacheFillMsg<KeyType> *) CkCopyMsg((void **) &reply);
 		*(int*)CkPriorityPtr(replyCopy) = -10000000;
 		CkSetQueueing(replyCopy, CK_QUEUEING_IFIFO);
-		cacheSmoothPart[(*vRec)[i]].recvData(replyCopy);
+		sendAggregated(
+      cacheSmoothPart[(*vRec)[i]],
+      CkIndex_CkCacheManager<KeyType>::idx_recvData_CkCacheFillMsg(),
+      replyCopy
+    );
 		}
 	    else
-		cacheSmoothPart[(*vRec)[i]].recvData(reply);
+		sendAggregated(
+      cacheSmoothPart[(*vRec)[i]],
+      CkIndex_CkCacheManager<KeyType>::idx_recvData_CkCacheFillMsg(),
+      reply
+    );
 	    }
 	delete vRec;
 	smPartRequests.erase(bucketKey);
@@ -303,7 +315,11 @@ void TreePiece::fillRequestSmoothParticles(CkCacheRequestMsg<KeyType> *msg) {
   
   *(int*)CkPriorityPtr(reply) = -10000000;
   CkSetQueueing(reply, CK_QUEUEING_IFIFO);
-  cacheSmoothPart[msg->replyTo].recvData(reply);
+  sendAggregated(
+    cacheSmoothPart[msg->replyTo],
+    CkIndex_CkCacheManager<KeyType>::idx_recvData_CkCacheFillMsg(),
+    reply
+  );
   
   delete msg;
 }
@@ -463,7 +479,11 @@ void TreePiece::fillRequestNode(CkCacheRequestMsg<KeyType> *msg) {
 #endif
       *(int*)CkPriorityPtr(reply) = -10000000;
       CkSetQueueing(reply, CK_QUEUEING_IFIFO);
-      cacheNode[msg->replyTo].recvData(reply);
+      sendAggregated(
+        cacheNode[msg->replyTo],
+        CkIndex_CkCacheManager<KeyType>::idx_recvData_CkCacheFillMsg(),
+        reply
+      );
     } else {
       CkAbort("Non cached version not anymore supported, feel free to fix it!");
       //copySFCTreeNode(tmp,node);

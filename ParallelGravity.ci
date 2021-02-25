@@ -537,6 +537,11 @@ mainmodule ParallelGravity {
       entry LvArray();
   };
 
+  group [migratable] AggregatorHelper {
+    entry AggregatorHelper(const CkArrayID& pieces, const CkGroupID& cacheNode,
+                           const CkGroupID& gravPart, const CkGroupID& smoothPart);
+  };
+
   group [migratable] PETreeMerger {
     entry PETreeMerger();
   };

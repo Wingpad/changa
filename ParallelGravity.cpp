@@ -58,48 +58,71 @@ using aggrsubmap_t = std::map<int, std::unique_ptr<aggbase_t>>;
 using aggrmap_t = std::map<CkArrayID, aggrsubmap_t>;
 CkpvDeclare(aggrmap_t, aggregators_);
 
+using grpaggrmap_t = std::map<CkGroupID, aggrsubmap_t>;
+CkpvDeclare(grpaggrmap_t, grp_aggregators_);
+
 constexpr auto aggrbufsz = 32;
 constexpr auto aggrutilcap = 0.75;
 constexpr auto aggrtimeout = 0.0125 * 16;
-constexpr auto aggrcond = CcdPROCESSOR_STILL_IDLE;
+constexpr auto aggrcond = CcdPERIODIC_10ms;
 }
 
-void initAggregators(const CkArrayID& id) {
-    if (!CkpvInitialized(aggregators_)) {
-        CkpvInitialize(aggrmap_t, aggregators_);
-    }
+AggregatorHelper::AggregatorHelper(const CkArrayID& pieces, const CkGroupID& cacheNode, const CkGroupID& gravPart, const CkGroupID& smoothPart) {
+    CkAssert(!CkpvInitialized(aggregators_));
+    CkpvInitialize(aggrmap_t, aggregators_);
 
     auto& as = CkpvAccess(aggregators_);
-    auto search = as.find(id);
-    if (search == as.end()) {
-        aggrsubmap_t sm;
+    aggrsubmap_t arsm;
 
-        auto asp = CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg();
-        sm[asp] = std::unique_ptr<shflagg_t>(
-            new shflagg_t(id, asp, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+    auto asp = CkIndex_TreePiece::idx_acceptSortedParticles_ParticleShuffleMsg();
+    arsm[asp] = std::unique_ptr<shflagg_t>(
+        new shflagg_t(pieces, asp, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
 
-        auto aspfo = CkIndex_TreePiece::idx_acceptSortedParticlesFromOther_ParticleShuffleMsg();
-        sm[aspfo] = std::unique_ptr<shflagg_t>(
-            new shflagg_t(id, aspfo, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
+    auto aspfo = CkIndex_TreePiece::idx_acceptSortedParticlesFromOther_ParticleShuffleMsg();
+    arsm[aspfo] = std::unique_ptr<shflagg_t>(
+        new shflagg_t(pieces, aspfo, aggrbufsz, aggrutilcap, aggrtimeout, false, aggrcond));
 
-        auto ioasp = CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg();
-        sm[ioasp] = std::unique_ptr<shflagg_t>(
-            new shflagg_t(id, ioasp, aggrbufsz * 4, aggrutilcap, aggrtimeout, false, aggrcond));
+    auto ioasp = CkIndex_TreePiece::idx_ioAcceptSortedParticles_ParticleShuffleMsg();
+    arsm[ioasp] = std::unique_ptr<shflagg_t>(
+        new shflagg_t(pieces, ioasp, aggrbufsz * 4, aggrutilcap, aggrtimeout, false, aggrcond));
 
-        auto frqn = CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg();
-        sm[frqn] = std::unique_ptr<creqagg_t>(
-            new creqagg_t(id, frqn, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
+    auto frqn = CkIndex_TreePiece::idx_fillRequestNode_CkCacheRequestMsg();
+    arsm[frqn] = std::unique_ptr<creqagg_t>(
+        new creqagg_t(pieces, frqn, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
 
-        auto frqp = CkIndex_TreePiece::idx_fillRequestParticles_CkCacheRequestMsg();
-        sm[frqp] = std::unique_ptr<creqagg_t>(
-            new creqagg_t(id, frqp, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
+    auto frqp = CkIndex_TreePiece::idx_fillRequestParticles_CkCacheRequestMsg();
+    arsm[frqp] = std::unique_ptr<creqagg_t>(
+        new creqagg_t(pieces, frqp, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
 
-        auto frqsp = CkIndex_TreePiece::idx_fillRequestSmoothParticles_CkCacheRequestMsg();
-        sm[frqsp] = std::unique_ptr<creqagg_t>(
-            new creqagg_t(id, frqsp, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
+    auto frqsp = CkIndex_TreePiece::idx_fillRequestSmoothParticles_CkCacheRequestMsg();
+    arsm[frqsp] = std::unique_ptr<creqagg_t>(
+        new creqagg_t(pieces, frqsp, aggrbufsz, aggrutilcap, aggrtimeout / 4, false, aggrcond));
 
-        as.emplace_hint(search, id, std::move(sm));
+    {
+        auto search = as.find(pieces);
+        CkAssert(search == as.end());
+        as.emplace_hint(search, pieces, std::move(arsm));
     }
+    
+
+    CkAssert(!CkpvInitialized(grp_aggregators_));
+    CkpvInitialize(grpaggrmap_t, grp_aggregators_);
+
+    auto helper = [&](const CkGroupID& id, const int& idx) {
+        aggrsubmap_t gsm;
+        gsm[idx] = std::unique_ptr<cachagg_t>(
+            new cachagg_t(aggrbufsz, aggrutilcap, aggrtimeout / 4, [id, idx](const aggregation::msg_size_t& sz, char *data){
+                CkMarshalledMessage msg;
+                PUP::fromMemBuf(msg, data, static_cast<size_t>(sz));
+                CkSendMsgBranch(idx, msg.getMessage(), CkMyPe(), id);
+            }, false, aggrcond));
+        CkpvAccess(grp_aggregators_).emplace(id, std::move(gsm));
+    };
+
+    auto rcvdat = CkIndex_CkCacheManager<KeyType>::idx_recvData_CkCacheFillMsg();
+    helper(cacheNode, rcvdat);
+    helper(gravPart, rcvdat);
+    helper(smoothPart, rcvdat);
 }
 
 aggbase_t* getAggregator(const CkArrayID& id, const int& idx) {
@@ -107,6 +130,14 @@ aggbase_t* getAggregator(const CkArrayID& id, const int& idx) {
     auto& as = CkpvAccess(aggregators_);
     auto search = as.find(id);
     CkAssert(search != as.end() && "initAggregators was not called for this array id");
+    return (search->second)[idx].get();
+}
+
+aggbase_t* getAggregator(const CkGroupID& id, const int& idx) {
+    CkAssert(CkpvInitialized(grp_aggregators_) && "aggregators were not init'd on this pe");
+    auto& as = CkpvAccess(grp_aggregators_);
+    auto search = as.find(id);
+    CkAssert(search != as.end() && "aggregators were not init'd for this group");
     return (search->second)[idx].get();
 }
 
@@ -1416,6 +1447,8 @@ Main::Main(CkArgMsg* m) {
 	cacheSmoothPart = CProxy_CkCacheManager<KeyType>::ckNew(cacheSize, pieces.ckLocMgr()->getGroupID());
 	// Nodes
 	cacheNode = CProxy_CkCacheManager<KeyType>::ckNew(cacheSize, pieces.ckLocMgr()->getGroupID());
+
+    CProxy_AggregatorHelper::ckNew(pieces, cacheGravPart, cacheSmoothPart, cacheNode);
 
 	//create the DataManager
 	CProxy_DataManager dataManager = CProxy_DataManager::ckNew(pieces);
